@@ -8,6 +8,8 @@ const memeBox = document.querySelector(".meme-box");
 const BATCH_SIZE = 15;
 const PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=com.memestation.viewer";
 
+/* ================= STATE ================= */
+
 let memes = [];
 let currentIndex = 0;
 let loadedCount = 0;
@@ -24,6 +26,17 @@ let vnState = {
 let pendingNextBatch = null;
 let loadMoreBtn = null;
 
+/* ================= LOAD MORE ADS CONTROL ================= */
+
+let loadMoreClickCount = 0;
+
+const loadMoreAdMap = {
+    1: "https://shorterwanderer.com/qv394jzf?key=1e88e85568f404ad029fc7a4e3db685f",
+    2: "https://shorterwanderer.com/d91f7rhz?key=6da6633dca4cad3f743f1633b8b5da53",
+    4: "https://shorterwanderer.com/zmw6nnbnh?key=5f6e16e896ed5dfefee6515585b5ee03",
+    6: "https://shorterwanderer.com/v358mgkvej?key=9b130202fbcda0879599843d16bd7577"
+};
+
 /* ================= SHUFFLE ================= */
 
 function shuffleArray(array) {
@@ -38,7 +51,6 @@ function shuffleArray(array) {
 async function loadMemes() {
     const res = await fetch("data/memes.json");
     const data = await res.json();
-
     memes = data.vietnamese.reverse();
     shuffleArray(memes);
 }
@@ -51,8 +63,17 @@ function createLoadMoreButton() {
     loadMoreBtn = document.createElement("button");
     loadMoreBtn.innerText = "Load More";
     loadMoreBtn.className = "load-more-btn";
+    loadMoreBtn.style.display = "none";
 
     loadMoreBtn.addEventListener("click", () => {
+
+        loadMoreClickCount++;
+
+        // 🔥 Trigger ad nếu trùng lần click
+        if (loadMoreAdMap[loadMoreClickCount]) {
+            window.open(loadMoreAdMap[loadMoreClickCount], "_blank");
+        }
+
         if (pendingNextBatch !== null) {
             renderBatch(pendingNextBatch);
             pendingNextBatch = null;
@@ -84,7 +105,7 @@ function isLocked(url) {
     );
 }
 
-/* ================= OVERLAY TEMPLATE ================= */
+/* ================= OVERLAY ================= */
 
 function createLockOverlay(message) {
     const overlay = document.createElement("div");
@@ -163,6 +184,7 @@ function resetSliderState() {
 /* ================= NAVIGATION ================= */
 
 function nextSlide() {
+
     if (currentIndex < slider.children.length - 1) {
         currentIndex++;
         updateSlider();
@@ -179,6 +201,7 @@ function nextSlide() {
 }
 
 function prevSlide() {
+
     if (currentIndex > 0) {
         currentIndex--;
         updateSlider();
@@ -257,6 +280,21 @@ tabs.forEach(tab => {
             updateSlider();
         } else {
             guide.style.display = "none";
+
+            const slide = document.createElement("div");
+            slide.className = "slide locked";
+
+            const img = document.createElement("img");
+            img.src = "https://via.placeholder.com/600x800?text=Premium+Content";
+            slide.appendChild(img);
+
+            slide.appendChild(
+                createLockOverlay(
+                    "Download app MemeStation on Google Play Store to watch this tab"
+                )
+            );
+
+            slider.appendChild(slide);
         }
     });
 });
@@ -265,6 +303,7 @@ tabs.forEach(tab => {
 
 (async function init() {
     await loadMemes();
+    createLoadMoreButton();
     renderBatch(0);
 })();
 

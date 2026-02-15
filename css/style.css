@@ -116,7 +116,7 @@ body {
 
 .scroll-guide {
     position: absolute;
-    bottom: 10px;
+    bottom: 30px;
     left: 0;
     width: 100%;
     text-align: center;
@@ -129,7 +129,7 @@ body {
 
 
 .arrow {
-    font-size: 34px;
+    font-size: 44px;
     color: red;
     animation: bounce 1.2s infinite;
 }
