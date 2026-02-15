@@ -3,6 +3,7 @@ const tabs = document.querySelectorAll(".tab");
 const guide = document.getElementById("scrollGuide");
 const btnUp = document.getElementById("btnUp");
 const btnDown = document.getElementById("btnDown");
+const memeBox = document.querySelector(".meme-box");
 
 const BATCH_SIZE = 15;
 const PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=com.memestation.viewer";
@@ -20,7 +21,10 @@ let vnState = {
     currentIndex: 0
 };
 
-/* ================= SHUFFLE (OPTION A) ================= */
+let pendingNextBatch = null;
+let loadMoreBtn = null;
+
+/* ================= SHUFFLE ================= */
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -36,9 +40,38 @@ async function loadMemes() {
     const data = await res.json();
 
     memes = data.vietnamese.reverse();
-
-    // 🔥 Shuffle toàn bộ danh sách 1 lần duy nhất
     shuffleArray(memes);
+}
+
+/* ================= LOAD MORE BUTTON ================= */
+
+function createLoadMoreButton() {
+    if (loadMoreBtn) return;
+
+    loadMoreBtn = document.createElement("button");
+    loadMoreBtn.innerText = "Load More";
+    loadMoreBtn.className = "load-more-btn";
+
+    loadMoreBtn.addEventListener("click", () => {
+        if (pendingNextBatch !== null) {
+            renderBatch(pendingNextBatch);
+            pendingNextBatch = null;
+            hideLoadMoreButton();
+        }
+    });
+
+    memeBox.appendChild(loadMoreBtn);
+}
+
+function showLoadMoreButton() {
+    createLoadMoreButton();
+    loadMoreBtn.style.display = "block";
+}
+
+function hideLoadMoreButton() {
+    if (loadMoreBtn) {
+        loadMoreBtn.style.display = "none";
+    }
 }
 
 /* ================= LOCK RULE ================= */
@@ -76,7 +109,8 @@ function createLockOverlay(message) {
 /* ================= RENDER BATCH ================= */
 
 function renderBatch(startIndex) {
-    slider.innerHTML = ""; // 🔥 vẫn đảm bảo chỉ 1 batch trong DOM
+    slider.innerHTML = "";
+    hideLoadMoreButton();
 
     const batch = memes.slice(startIndex, startIndex + BATCH_SIZE);
 
@@ -102,12 +136,11 @@ function createSlide(url) {
 
     if (isLocked(url)) {
         slide.classList.add("locked");
-
-        const overlay = createLockOverlay(
-            "Download app MemeStation on Google Play Store to watch this meme"
+        slide.appendChild(
+            createLockOverlay(
+                "Download app MemeStation on Google Play Store to watch this meme"
+            )
         );
-
-        slide.appendChild(overlay);
     }
 
     return slide;
@@ -124,6 +157,7 @@ function resetSliderState() {
     loadedCount = 0;
     slider.innerHTML = "";
     slider.style.transform = "translateY(0%)";
+    hideLoadMoreButton();
 }
 
 /* ================= NAVIGATION ================= */
@@ -139,7 +173,8 @@ function nextSlide() {
     const nextBatchStart = loadedCount + BATCH_SIZE;
 
     if (nextBatchStart < memes.length) {
-        renderBatch(nextBatchStart);
+        pendingNextBatch = nextBatchStart;
+        showLoadMoreButton();
     }
 }
 
@@ -222,20 +257,6 @@ tabs.forEach(tab => {
             updateSlider();
         } else {
             guide.style.display = "none";
-
-            const slide = document.createElement("div");
-            slide.className = "slide locked";
-
-            const img = document.createElement("img");
-            img.src = "https://via.placeholder.com/600x800?text=Premium+Content";
-            slide.appendChild(img);
-
-            const overlay = createLockOverlay(
-                "Download app MemeStation on Google Play Store to watch this tab"
-            );
-
-            slide.appendChild(overlay);
-            slider.appendChild(slide);
         }
     });
 });
@@ -250,11 +271,6 @@ tabs.forEach(tab => {
 /* ================= DESKTOP BUTTONS ================= */
 
 if (btnUp && btnDown) {
-    btnUp.addEventListener("click", () => {
-        prevSlide();
-    });
-
-    btnDown.addEventListener("click", () => {
-        nextSlide();
-    });
+    btnUp.addEventListener("click", () => prevSlide());
+    btnDown.addEventListener("click", () => nextSlide());
 }

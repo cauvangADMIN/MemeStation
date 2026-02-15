@@ -177,3 +177,36 @@ body {
         display: flex;
     }
 }
+
+/* ================= LOAD MORE ================= */
+
+.load-more-btn {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: red;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 30;
+    animation: floatBtn 2.2s ease-in-out infinite;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.load-more-btn:hover {
+    background: #cc0000;
+    transform: translateX(-50%) scale(1.05);
+}
+
+/* Floating effect */
+@keyframes floatBtn {
+    0%   { transform: translate(-50%, 0); }
+    50%  { transform: translate(-50%, -6px); }
+    100% { transform: translate(-50%, 0); }
+}
+
