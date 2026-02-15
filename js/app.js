@@ -20,12 +20,25 @@ let vnState = {
     currentIndex: 0
 };
 
+/* ================= SHUFFLE (OPTION A) ================= */
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
 /* ================= FETCH ================= */
 
 async function loadMemes() {
     const res = await fetch("data/memes.json");
     const data = await res.json();
+
     memes = data.vietnamese.reverse();
+
+    // 🔥 Shuffle toàn bộ danh sách 1 lần duy nhất
+    shuffleArray(memes);
 }
 
 /* ================= LOCK RULE ================= */
@@ -63,7 +76,7 @@ function createLockOverlay(message) {
 /* ================= RENDER BATCH ================= */
 
 function renderBatch(startIndex) {
-    slider.innerHTML = "";
+    slider.innerHTML = ""; // 🔥 vẫn đảm bảo chỉ 1 batch trong DOM
 
     const batch = memes.slice(startIndex, startIndex + BATCH_SIZE);
 
