@@ -34,7 +34,9 @@ const loadMoreAdMap = {
     1: "https://shorterwanderer.com/qv394jzf?key=1e88e85568f404ad029fc7a4e3db685f",
     2: "https://shorterwanderer.com/d91f7rhz?key=6da6633dca4cad3f743f1633b8b5da53",
     4: "https://shorterwanderer.com/zmw6nnbnh?key=5f6e16e896ed5dfefee6515585b5ee03",
-    6: "https://shorterwanderer.com/v358mgkvej?key=9b130202fbcda0879599843d16bd7577"
+    6: "https://shorterwanderer.com/v358mgkvej?key=9b130202fbcda0879599843d16bd7577",
+    10: "https://shorterwanderer.com/xmjpt9bm?key=7fed831526b5ff86aa9eb8d43f01e0c8",
+    13: "https://shorterwanderer.com/v358mgkvej?key=9b130202fbcda0879599843d16bd7577"
 };
 
 /* ================= SHUFFLE ================= */
