@@ -8,27 +8,37 @@ const memeBox = document.querySelector(".meme-box");
 const BATCH_SIZE = 15;
 const PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=com.memestation.viewer";
 
+/* ================= DATA ================= */
+
+let memeData = {
+    vn: [],
+    global: []
+};
+
 /* ================= STATE ================= */
 
-let memes = [];
-let currentIndex = 0;
-let loadedCount = 0;
+let currentTab = "vn";
 let startY = 0;
 let deltaY = 0;
 let isDragging = false;
-let currentTab = "vn";
-
-let vnState = {
-    loadedCount: 0,
-    currentIndex: 0
-};
-
-let pendingNextBatch = null;
 let loadMoreBtn = null;
 
-/* ================= LOAD MORE ADS CONTROL ================= */
+let tabState = {
+    vn: {
+        loadedCount: 0,
+        currentIndex: 0,
+        pendingNextBatch: null,
+        loadMoreClickCount: 0
+    },
+    global: {
+        loadedCount: 0,
+        currentIndex: 0,
+        pendingNextBatch: null,
+        loadMoreClickCount: 0
+    }
+};
 
-let loadMoreClickCount = 0;
+/* ================= LOAD MORE ADS ================= */
 
 const loadMoreAdMap = {
     1: "https://shorterwanderer.com/qv394jzf?key=1e88e85568f404ad029fc7a4e3db685f",
@@ -39,7 +49,15 @@ const loadMoreAdMap = {
     13: "https://shorterwanderer.com/v358mgkvej?key=9b130202fbcda0879599843d16bd7577"
 };
 
-/* ================= SHUFFLE ================= */
+/* ================= HELPERS ================= */
+
+function getState() {
+    return tabState[currentTab];
+}
+
+function getMemes() {
+    return memeData[currentTab];
+}
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -53,58 +71,34 @@ function shuffleArray(array) {
 async function loadMemes() {
     const res = await fetch("data/memes.json");
     const data = await res.json();
-    memes = data.vietnamese.reverse();
-    shuffleArray(memes);
-}
 
-/* ================= LOAD MORE BUTTON ================= */
+    memeData.vn = [...data.vietnamese].reverse();
+    memeData.global = [...data.global].reverse();
 
-function createLoadMoreButton() {
-    if (loadMoreBtn) return;
-
-    loadMoreBtn = document.createElement("button");
-    loadMoreBtn.innerText = "Load More";
-    loadMoreBtn.className = "load-more-btn";
-    loadMoreBtn.style.display = "none";
-
-    loadMoreBtn.addEventListener("click", () => {
-
-        loadMoreClickCount++;
-
-        // 🔥 Trigger ad nếu trùng lần click
-        if (loadMoreAdMap[loadMoreClickCount]) {
-            window.open(loadMoreAdMap[loadMoreClickCount], "_blank");
-        }
-
-        if (pendingNextBatch !== null) {
-            renderBatch(pendingNextBatch);
-            pendingNextBatch = null;
-            hideLoadMoreButton();
-        }
-    });
-
-    memeBox.appendChild(loadMoreBtn);
-}
-
-function showLoadMoreButton() {
-    createLoadMoreButton();
-    loadMoreBtn.style.display = "block";
-}
-
-function hideLoadMoreButton() {
-    if (loadMoreBtn) {
-        loadMoreBtn.style.display = "none";
-    }
+    shuffleArray(memeData.vn);
+    shuffleArray(memeData.global);
 }
 
 /* ================= LOCK RULE ================= */
 
 function isLocked(url) {
+
     const name = url.split("/").pop();
-    return (
-        /^memevn_v\d{3}\.jpg$/.test(name) ||
-        /^memevn_u\d{3}\.jpg$/.test(name)
-    );
+
+    // VN rule
+    if (currentTab === "vn") {
+        return (
+            /^memevn_v\d{3}\.jpg$/.test(name) ||
+            /^memevn_u\d{3}\.jpg$/.test(name)
+        );
+    }
+
+    // GLOBAL rule
+    if (currentTab === "global") {
+        return name.includes("_u");
+    }
+
+    return false;
 }
 
 /* ================= OVERLAY ================= */
@@ -129,9 +123,13 @@ function createLockOverlay(message) {
     return overlay;
 }
 
-/* ================= RENDER BATCH ================= */
+/* ================= RENDER ================= */
 
-function renderBatch(startIndex) {
+function renderBatch(startIndex, restoreIndex = null) {
+
+    const state = getState();
+    const memes = getMemes();
+
     slider.innerHTML = "";
     hideLoadMoreButton();
 
@@ -141,12 +139,19 @@ function renderBatch(startIndex) {
         slider.appendChild(createSlide(url));
     });
 
-    loadedCount = startIndex;
-    currentIndex = 0;
+    state.loadedCount = startIndex;
+
+    if (restoreIndex !== null) {
+        state.currentIndex = restoreIndex;
+    } else {
+        state.currentIndex = 0;
+    }
+
     updateSlider();
 }
 
 function createSlide(url) {
+
     const slide = document.createElement("div");
     slide.className = "slide";
 
@@ -172,52 +177,170 @@ function createSlide(url) {
 /* ================= SLIDER ================= */
 
 function updateSlider() {
-    slider.style.transform = `translateY(-${currentIndex * 100}%)`;
+
+    if (currentTab === "video") {
+        slider.style.transform = "translateY(0%)";
+        return;
+    }
+
+    const state = getState();
+    slider.style.transform = `translateY(-${state.currentIndex * 100}%)`;
 }
 
-function resetSliderState() {
-    currentIndex = 0;
-    loadedCount = 0;
+/* ================= LOAD MORE ================= */
+
+function createLoadMoreButton() {
+
+    if (loadMoreBtn) return;
+
+    loadMoreBtn = document.createElement("button");
+    loadMoreBtn.innerText = "Load More";
+    loadMoreBtn.className = "load-more-btn";
+    loadMoreBtn.style.display = "none";
+
+    loadMoreBtn.addEventListener("click", () => {
+
+        const state = getState();
+        state.loadMoreClickCount++;
+
+        if (loadMoreAdMap[state.loadMoreClickCount]) {
+            window.open(loadMoreAdMap[state.loadMoreClickCount], "_blank");
+        }
+
+        if (state.pendingNextBatch !== null) {
+            renderBatch(state.pendingNextBatch);
+            state.pendingNextBatch = null;
+            hideLoadMoreButton();
+        }
+    });
+
+    memeBox.appendChild(loadMoreBtn);
+}
+
+function showLoadMoreButton() {
+    createLoadMoreButton();
+    loadMoreBtn.style.display = "block";
+}
+
+function hideLoadMoreButton() {
+    if (loadMoreBtn) loadMoreBtn.style.display = "none";
+}
+
+/* ================= Tab Video ================= */
+function renderVideoTab() {
+
     slider.innerHTML = "";
-    slider.style.transform = "translateY(0%)";
     hideLoadMoreButton();
+    guide.style.display = "none";
+
+    // RESET transform quan trọng
+    slider.style.transform = "translateY(0%)";
+
+    const slide = document.createElement("div");
+    slide.className = "slide locked";
+
+    const img = document.createElement("img");
+    img.src = "https://via.placeholder.com/600x800?text=Video+Content";
+    img.style.objectFit = "cover";
+
+    slide.appendChild(img);
+
+    slide.appendChild(
+        createLockOverlay(
+            "Download app MemeStation to watch this tab"
+        )
+    );
+
+    slider.appendChild(slide);
 }
 
 /* ================= NAVIGATION ================= */
 
 function nextSlide() {
 
-    if (currentIndex < slider.children.length - 1) {
-        currentIndex++;
+    if (currentTab === "video") return;
+
+    const state = getState();
+    const memes = getMemes();
+
+    if (state.currentIndex < slider.children.length - 1) {
+        state.currentIndex++;
         updateSlider();
         guide.style.display = "none";
         return;
     }
 
-    const nextBatchStart = loadedCount + BATCH_SIZE;
+    const nextBatchStart = state.loadedCount + BATCH_SIZE;
 
     if (nextBatchStart < memes.length) {
-        pendingNextBatch = nextBatchStart;
+        state.pendingNextBatch = nextBatchStart;
         showLoadMoreButton();
     }
 }
 
 function prevSlide() {
 
-    if (currentIndex > 0) {
-        currentIndex--;
+    if (currentTab === "video") return;
+
+    const state = getState();
+
+    if (state.currentIndex > 0) {
+        state.currentIndex--;
         updateSlider();
         return;
     }
 
-    const prevBatchStart = loadedCount - BATCH_SIZE;
+    const prevBatchStart = state.loadedCount - BATCH_SIZE;
 
     if (prevBatchStart >= 0) {
         renderBatch(prevBatchStart);
-        currentIndex = slider.children.length - 1;
+        state.currentIndex = slider.children.length - 1;
         updateSlider();
     }
 }
+
+/* ================= TAB LOGIC ================= */
+
+tabs.forEach(tab => {
+
+    tab.addEventListener("click", () => {
+
+        if (tab.dataset.tab === currentTab) return;
+
+        // lưu state nếu là vn hoặc global
+        if (currentTab === "vn" || currentTab === "global") {
+            const oldState = getState();
+            oldState.currentIndex = oldState.currentIndex;
+            oldState.loadedCount = oldState.loadedCount;
+        }
+
+        tabs.forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        currentTab = tab.dataset.tab;
+
+        slider.innerHTML = "";
+        hideLoadMoreButton();
+
+        if (currentTab === "vn" || currentTab === "global") {
+
+            guide.style.display = currentTab === "vn" ? "block" : "none";
+
+            const state = getState();
+
+            renderBatch(
+                state.loadedCount,
+                state.currentIndex
+            );
+        }
+
+        if (currentTab === "video") {
+            renderVideoTab();
+        }
+
+    });
+
+});
 
 /* ================= TOUCH ================= */
 
@@ -232,73 +355,16 @@ slider.addEventListener("touchmove", e => {
 });
 
 slider.addEventListener("touchend", () => {
+    if (currentTab === "video") {
+        deltaY = 0;
+        isDragging = false;
+        return;
+    }
+
     if (deltaY < -80) nextSlide();
     else if (deltaY > 80) prevSlide();
     deltaY = 0;
     isDragging = false;
-});
-
-/* ================= MOUSE ================= */
-
-slider.addEventListener("mousedown", e => {
-    startY = e.clientY;
-    isDragging = true;
-});
-
-slider.addEventListener("mousemove", e => {
-    if (!isDragging) return;
-    deltaY = e.clientY - startY;
-});
-
-slider.addEventListener("mouseup", () => {
-    if (deltaY < -80) nextSlide();
-    else if (deltaY > 80) prevSlide();
-    deltaY = 0;
-    isDragging = false;
-});
-
-/* ================= TAB LOGIC ================= */
-
-tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-
-        if (tab.dataset.tab === currentTab) return;
-
-        if (currentTab === "vn") {
-            vnState.loadedCount = loadedCount;
-            vnState.currentIndex = currentIndex;
-        }
-
-        tabs.forEach(t => t.classList.remove("active"));
-        tab.classList.add("active");
-
-        currentTab = tab.dataset.tab;
-        resetSliderState();
-
-        if (currentTab === "vn") {
-            guide.style.display = "block";
-            renderBatch(vnState.loadedCount);
-            currentIndex = vnState.currentIndex;
-            updateSlider();
-        } else {
-            guide.style.display = "none";
-
-            const slide = document.createElement("div");
-            slide.className = "slide locked";
-
-            const img = document.createElement("img");
-            img.src = "https://via.placeholder.com/600x800?text=Premium+Content";
-            slide.appendChild(img);
-
-            slide.appendChild(
-                createLockOverlay(
-                    "Download app MemeStation on Google Play Store to watch this tab"
-                )
-            );
-
-            slider.appendChild(slide);
-        }
-    });
 });
 
 /* ================= INIT ================= */
@@ -309,9 +375,14 @@ tabs.forEach(tab => {
     renderBatch(0);
 })();
 
-/* ================= DESKTOP BUTTONS ================= */
+/* ================= DESKTOP ================= */
 
 if (btnUp && btnDown) {
-    btnUp.addEventListener("click", () => prevSlide());
-    btnDown.addEventListener("click", () => nextSlide());
+    btnUp.addEventListener("click", () => {
+        if (currentTab !== "video") prevSlide();
+    });
+
+    btnDown.addEventListener("click", () => {
+        if (currentTab !== "video") nextSlide();
+    });
 }
